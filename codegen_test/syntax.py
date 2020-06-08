@@ -1,6 +1,6 @@
 ﻿
 import re
-from typing import Iterable, Tuple
+from typing import Iterable, Tuple, Optional
 
 
 def rewrite(template: str) -> str:
@@ -53,19 +53,7 @@ class SyntaxTemplate(metaclass=SyntaxTemplateMeta):
     def __getitem__(self, key: str) -> str:
         if not key in self.params:
             raise KeyError(f"key \"{key}\" is not valid for {type(self)}")
-        param = self._dict[key]
-        def resolve(param):
-            if issubclass(type(param), SyntaxTemplate):
-                return param.fill()
-            else:
-                assert(type(param) is str)
-                return param
-        if not type(param) is str:
-            param = "\n".join(map(resolve, param))
-        if key in self.indent:
-            return indent(param)
-        else:
-            return param
+        return self._dict[key]
 
     def __setitem__(self, key: str, value: str) -> str:
         if not key in self.params:
@@ -87,13 +75,21 @@ class SyntaxTemplate(metaclass=SyntaxTemplateMeta):
         return value
 
     def __repr__(self) -> str:
-        return f"<{type(self).__name__} {self._dict}>"
+        params_repr = ", ".join([f"{p}={repr(self._dict[p])}" for p in self.params])
+        return f"<{type(self).__name__} {params_repr}>"
 
-    def fill(self) -> str:
-        resolved = {}
-        for key in self.params:
-            resolved[key] = self[key]
-        return self.template.format(**resolved)
+    def resolve(self, key: Optional[str] = None) -> str:
+        if key is not None:
+            value = self._dict[key]
+            if type(value) is not str:
+                value = "\n".join(map(lambda x: str(x), value))
+            if key in self.indent:
+                return indent(value)
+            else:
+                return value
+        else:
+            resolved = {param:self.resolve(param) for param in self.params}
+            return self.template.format(**resolved)
 
     def __str__(self) -> str:
-        return self.fill()
+        return self.resolve()

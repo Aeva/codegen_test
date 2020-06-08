@@ -4,7 +4,7 @@ assert(sys.version_info.major >= 3)
 assert(sys.version_info.minor >= 6)
 import subprocess
 from typing import Iterable, Dict
-from .syntax import SyntaxTemplate
+from syntax import SyntaxTemplate
 
 
 class SystemInclude(SyntaxTemplate):
@@ -68,6 +68,6 @@ if __name__ == "__main__":
     main.body = [talker.call for talker in talkers]
 
     with open("generated.cpp", "w") as outfile:
-        outfile.write(main.fill())
+        outfile.write(str(main))
     subprocess.run(["g++", "generated.cpp"], check=True)
     subprocess.run(["./a.out"])

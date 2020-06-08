@@ -3,8 +3,8 @@ import sys
 assert(sys.version_info.major >= 3)
 assert(sys.version_info.minor >= 6)
 import subprocess
-from typing import Iterable
-from syntax import SyntaxTemplate, indent
+from typing import Iterable, Dict
+from .syntax import SyntaxTemplate
 
 
 class SystemInclude(SyntaxTemplate):
@@ -25,7 +25,7 @@ class TalkerCall(SyntaxTemplate):
     template = "「name」();"
 
 
-TALKERS = {}
+TALKERS: Dict[str, TalkerFn] = {}
 def get_talker(message: str) -> TalkerFn:
     global TALKERS
     count = len(TALKERS.keys())
@@ -44,6 +44,7 @@ class Talker:
 
 
 class ProgramMain(SyntaxTemplate):
+    indent = ("body",)
     template = \
 """
 「includes」
@@ -54,25 +55,17 @@ int main()
 \treturn 0;
 }
 """
-
-
-def fill_and_join(iterable: Iterable[SyntaxTemplate]) -> str:
-    return "\n".join([i.fill() for i in iterable])
         
 
 if __name__ == "__main__":
-    includes = [SystemInclude("iostream")]
+    main = ProgramMain()
+    main.includes = [SystemInclude("iostream")]
 
     words = "This is probably not the worst way to print something, but I think it is up there.\\n".split(" ")
 
     talkers = [Talker(word) for word in words]
-    definitions = TALKERS.values()
-    body = [talker.call for talker in talkers]
-
-    main = ProgramMain(
-        includes = fill_and_join(includes),
-        definitions = fill_and_join(definitions),
-        body = indent(fill_and_join(body)))
+    main.definitions = TALKERS.values()
+    main.body = [talker.call for talker in talkers]
 
     with open("generated.cpp", "w") as outfile:
         outfile.write(main.fill())

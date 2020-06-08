@@ -38,10 +38,10 @@ class SyntaxTemplateMeta(type):
 class SyntaxTemplate(metaclass=SyntaxTemplateMeta):
     template = ""
     params: Tuple[str, ...] = tuple()
+    indent: Tuple[str, ...] = tuple()
 
     def __init__(self, *args, **kwargs) -> None:
-        if len(self.params) == 1:
-            assert(len(args) != len(kwargs.keys()))
+        if len(self.params) == 1 and len(args) > 0:
             if len(args) == 1:
                 kwargs[self.params[0]] = args[0]
         elif len(self.params) > 1 and len(args) > 0:
@@ -53,13 +53,47 @@ class SyntaxTemplate(metaclass=SyntaxTemplateMeta):
     def __getitem__(self, key: str) -> str:
         if not key in self.params:
             raise KeyError(f"key \"{key}\" is not valid for {type(self)}")
-        return self._dict[key]
+        param = self._dict[key]
+        def resolve(param):
+            if issubclass(type(param), SyntaxTemplate):
+                return param.fill()
+            else:
+                assert(type(param) is str)
+                return param
+        if not type(param) is str:
+            param = "\n".join(map(resolve, param))
+        if key in self.indent:
+            return indent(param)
+        else:
+            return param
 
     def __setitem__(self, key: str, value: str) -> str:
         if not key in self.params:
-            raise KeyError(f"key \"{key}\" is not valid for {type(self)}")
+            raise KeyError(f"key \"{key}\" is not valid for {type(self).__name__}")
         self._dict[key] = value
         return value
 
+    def __getattr__(self, name):
+        if name in self.params:
+            return self[name]
+        else:
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+
+    def __setattr__(self, name, value):
+        if name in self.params:
+            self[name] = value
+        else:
+            object.__setattr__(self, name, value)
+        return value
+
+    def __repr__(self) -> str:
+        return f"<{type(self).__name__} {self._dict}>"
+
     def fill(self) -> str:
-        return self.template.format(**self._dict)
+        resolved = {}
+        for key in self.params:
+            resolved[key] = self[key]
+        return self.template.format(**resolved)
+
+    def __str__(self) -> str:
+        return self.fill()
